@@ -9,50 +9,152 @@ import (
 	"runtime"
 )
 
-const width = 45
-const height = 45
+const (
+	WIDTH  = 45
+	HEIGHT = 45
+)
 
 // golangのenum実装
 const (
-	Death = iota
-	Live
-	Cursor
+	DEATH = iota
+	LIVE
+	CURSOR
 )
 
 const (
-	Up    = "w"
-	Down  = "s"
-	Left  = "a"
-	Right = "d"
+	SWITCH_CELL = 13
+	NEXT_GEN    = 32
+	UP          = 119
+	DOWN        = 115
+	LEFT        = 97
+	RIGHT       = 100
 )
 
 var board [][]int
+var cursorY, cursorX int
 
-func put() {
-	board[15][15] = 1
-	board[15][16] = 2
-	board[15][17] = 1
-	board[15][18] = 1
+func init() {
+	initBoard()
+}
+
+func main() {
+	tty, err := tty.Open()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tty.Close()
+	for {
+		clear()
+		printBoard(board)
+
+		// キー入力待ち
+		rune, err := tty.ReadRune()
+		if err != nil {
+			log.Fatal(err)
+		}
+		switch rune {
+		case SWITCH_CELL:
+			board[cursorY][cursorX] ^= LIVE
+		case NEXT_GEN:
+			updateBoard()
+		case UP:
+			if cursorY == 0 {
+				cursorY = HEIGHT - 1
+			} else {
+				cursorY--
+			}
+		case DOWN:
+			if cursorY == HEIGHT-1 {
+				cursorY = 0
+			} else {
+				cursorY++
+			}
+		case LEFT:
+			if cursorX == 0 {
+				cursorX = WIDTH - 1
+			} else {
+				cursorX--
+			}
+		case RIGHT:
+			if cursorX == WIDTH-1 {
+				cursorX = 0
+			} else {
+				cursorX++
+			}
+		}
+	}
+}
+
+func createBoard() (newBoard [][]int) {
+	newBoard = make([][]int, HEIGHT)
+	for i := range newBoard {
+		newBoard[i] = make([]int, WIDTH)
+	}
+	return
 }
 
 func initBoard() {
-	board = make([][]int, height)
-	for i := range board {
-		board[i] = make([]int, width)
+	board = createBoard()
+	cursorY = HEIGHT / 2
+	cursorX = WIDTH / 2
+}
+
+func updateBoard() {
+	tempBoard := createBoard()
+	// ボード全体用ループ
+	for y := 0; y < HEIGHT; y++ {
+		for x := 0; x < WIDTH; x++ {
+			// 周囲の生きたセルカウント用
+			aroundLives := 0
+			// 周囲のセル用ループ
+			for i := y - 1; i <= y+1; i++ {
+				for j := x - 1; j <= x+1; j++ {
+					if i == y && j == x {
+						continue
+					}
+					if i < 0 || i >= HEIGHT {
+						continue
+					}
+					if j < 0 || j >= WIDTH {
+						continue
+					}
+					if board[i][j] == LIVE {
+						aroundLives++
+					}
+				}
+			}
+			// 次世代の生死ジャッジ
+			if board[y][x] == LIVE {
+				if aroundLives < 2 || aroundLives > 3 {
+					// 過疎 or 過密
+					tempBoard[y][x] = DEATH
+				} else {
+					// 生存
+					tempBoard[y][x] = LIVE
+				}
+			} else {
+				if aroundLives == 3 {
+					// 誕生
+					tempBoard[y][x] = LIVE
+				} else {
+					tempBoard[y][x] = DEATH
+				}
+			}
+		}
 	}
-	board[22][22] = Cursor
+	board = tempBoard
 }
 
 func printBoard(board [][]int) {
-	for i := 0; i < height; i++ {
-		for j := 0; j < width; j++ {
-			switch board[i][j] {
-			case Death:
-				fmt.Print(" .")
-			case Live:
-				fmt.Print("[]")
-			case Cursor:
+	for y := 0; y < HEIGHT; y++ {
+		for x := 0; x < WIDTH; x++ {
+			switch {
+			case y == cursorY && x == cursorX:
 				fmt.Print("<>")
+			case board[y][x] == LIVE:
+				fmt.Print("[]")
+			default:
+				fmt.Print(" .")
 			}
 		}
 		fmt.Println()
@@ -68,35 +170,5 @@ func clear() {
 		cmd := exec.Command("clear")
 		cmd.Stdout = os.Stdout
 		cmd.Run()
-	}
-}
-
-func init() {
-	initBoard()
-}
-
-func main() {
-	tty, err := tty.Open()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tty.Close()
-	for {
-		clear()
-		printBoard(board)
-		rune, err := tty.ReadRune()
-		if err != nil {
-			log.Fatal(err)
-		}
-		switch string(rune) {
-		case Up:
-			fmt.Println(rune)
-		case Down:
-			fmt.Println(rune)
-		case Left:
-			fmt.Println(rune)
-		case Right:
-			fmt.Println(rune)
-		}
 	}
 }
