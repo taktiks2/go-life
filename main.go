@@ -109,16 +109,13 @@ func updateBoard() {
 			// 周囲のセル用ループ
 			for i := y - 1; i <= y+1; i++ {
 				for j := x - 1; j <= x+1; j++ {
-					if i == y && j == x {
+					// ボードの端同士をつなぐ
+					ii := (i + HEIGHT) % HEIGHT
+					jj := (j + WIDTH) % WIDTH
+					if ii == y && jj == x {
 						continue
 					}
-					if i < 0 || i >= HEIGHT {
-						continue
-					}
-					if j < 0 || j >= WIDTH {
-						continue
-					}
-					if board[i][j] == LIVE {
+					if board[ii][jj] == LIVE {
 						aroundLives++
 					}
 				}
